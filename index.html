@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мастер клавиатуры — 2 класс</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  :root{
+    --blue:#1d3f8f; --blue-d:#12296b; --green:#1e9e3f; --green-l:#d9f7df;
+    --yellow:#ffd54a; --red:#d32f2f;
+    --kh:clamp(38px,6vh,62px);        /* высота клавиши */
+    --kf:clamp(18px,3.2vh,31px);      /* шрифт букв на клавишах */
+    --kl:clamp(13px,2.2vh,20px);      /* шрифт подписей Shift/Enter... */
+  }
+  body{
+    font-family:'Segoe UI',Verdana,Arial,sans-serif;
+    color:#13203d;min-height:100vh;
+    background-color:#fbfaf2;
+    background-image:linear-gradient(#d3e2f2 1px,transparent 1px),linear-gradient(90deg,#d3e2f2 1px,transparent 1px);
+    background-size:26px 26px;          /* тетрадь в клетку */
+    -webkit-font-smoothing:antialiased;
+    height:100vh;height:100dvh;display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;
+  }
+
+  /* ---------- шапка ---------- */
+  .topbar{
+    background:var(--blue);color:#fff;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:5px 16px;border-bottom:4px solid var(--blue-d);flex:0 0 auto;
+  }
+  .brand{font-size:clamp(18px,2.4vh,26px);font-weight:800;white-space:nowrap}
+  .brand span{font-weight:600;opacity:.85;margin-left:6px}
+  .stepper{display:flex;gap:6px;flex:1 1 auto;flex-wrap:wrap;justify-content:center}
+  .st{
+    width:32px;height:32px;border-radius:50%;border:3px solid rgba(255,255,255,.45);
+    background:transparent;color:rgba(255,255,255,.6);
+    font:700 15px 'Segoe UI',Verdana,sans-serif;cursor:default;padding:0;
+  }
+  .st.done{background:var(--green);border-color:#8fe3a6;color:#fff;cursor:pointer}
+  .st.now{background:#fff;border-color:var(--yellow);color:var(--blue);box-shadow:0 0 0 4px rgba(255,213,74,.55);cursor:default}
+  .st.lock::after{content:"";}
+  .counter{font-size:clamp(15px,2vh,20px);font-weight:700;background:#fff;color:var(--blue);padding:4px 14px;border-radius:999px;white-space:nowrap}
+
+  .app{width:100%;max-width:1340px;margin:0 auto;padding:8px 12px 8px;display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0}
+
+  /* ---------- карточка задания ---------- */
+  .task-card{
+    position:relative;background:#fff;border:3px solid var(--blue);border-radius:14px;
+    padding:6px 16px 8px 44px;box-shadow:0 4px 0 rgba(29,63,143,.25);flex:0 0 auto;
+  }
+  .task-card::before{content:"";position:absolute;left:26px;top:0;bottom:0;width:3px;background:#e57373}
+  .task-title{font-size:clamp(18px,3vh,28px);font-weight:800;color:var(--blue);margin-bottom:4px}
+  .task-desc{
+    font-size:clamp(17px,2.9vh,26px);line-height:1.35;font-weight:600;color:#0d1730;
+    background:#fff3b8;border-left:8px solid #f2a900;border-radius:8px;padding:5px 14px;
+  }
+  .task-desc .q{background:var(--blue);color:#fff;border-radius:6px;padding:0 8px;font-weight:800;white-space:nowrap}
+  .task-desc .kw{background:#fff;border:2px solid var(--blue);color:var(--blue-d);border-radius:6px;padding:0 6px;font-weight:800;white-space:nowrap}
+
+  /* ---------- рабочая зона ---------- */
+  .work{display:grid;grid-template-columns:1.05fr 1fr;gap:10px;flex:0 0 auto}
+  .panel{background:#fff;border:3px solid #7a8aa8;border-radius:14px;padding:5px 12px 8px;display:flex;flex-direction:column;box-shadow:0 4px 0 rgba(0,0,0,.08)}
+  .target-panel{border-color:#2e8b3d}
+  .panel-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:clamp(15px,2.1vh,20px);font-weight:800;color:#3a4a6b;margin-bottom:3px}
+  .target-panel .panel-head{color:#1b6b2c}
+  .goal{font-weight:600;color:#42506e;font-size:clamp(14px,2vh,18px)}
+  .goal b{font-family:Consolas,'Courier New',monospace;background:#eef2f8;padding:1px 8px;border-radius:5px;color:#0d1730}
+
+  /* слово, которое надо напечатать */
+  .tokens{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:clamp(44px,6.6vh,64px)}
+  .tok{
+    min-width:clamp(40px,5.6vh,56px);height:clamp(44px,6.4vh,62px);padding:0 8px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:Consolas,'Courier New',monospace;font-weight:800;font-size:clamp(26px,4.4vh,44px);
+    background:#eef1f6;color:#1b2a4a;border:3px solid #9aa7bd;border-radius:10px;
+    transition:background .2s,border-color .2s,color .2s;
+  }
+  .tok.small{font-family:'Segoe UI',Verdana,sans-serif;font-size:clamp(15px,2.3vh,22px)}
+  .tok.done{background:var(--green-l);border-color:var(--green);color:#0b6a27}
+  .tok.now{background:#fff3b0;border-color:#f2a900;box-shadow:0 0 0 4px rgba(242,169,0,.35)}
+  .tok.bad{background:#ffd9d9;border-color:var(--red);animation:shake .38s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+
+  /* строка подсказки / ошибки / успеха */
+  .strip{
+    margin-top:6px;min-height:clamp(46px,7vh,64px);border-radius:10px;padding:4px 12px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    font-size:clamp(15px,2.3vh,21px);font-weight:700;
+  }
+  .strip.hint{background:#e9f0ff;color:var(--blue-d);border:2px solid #b7c9f2}
+  .strip.error{background:#ffe3e3;color:#8a1f1f;border:2px solid var(--red);font-size:clamp(14px,2.1vh,19px);line-height:1.25}
+  .strip.ok{background:var(--green-l);color:#0b5a21;border:2px solid var(--green)}
+  .cap{
+    display:inline-flex;align-items:center;justify-content:center;min-width:1.7em;padding:2px 12px;
+    font-weight:800;color:#13203d;background:linear-gradient(#fff,#e2e7ee);
+    border:2px solid #9aa6b8;border-bottom-width:5px;border-radius:8px;
+  }
+  .plus{font-weight:800}
+  .note{font-weight:600;opacity:.85;font-size:.8em}
+  #nextBtn{
+    margin-left:auto;font:800 clamp(18px,2.8vh,26px) 'Segoe UI',Verdana,sans-serif;color:#fff;
+    background:linear-gradient(#2fb350,#1e9e3f);border:none;border-radius:12px;padding:10px 26px;cursor:pointer;
+    box-shadow:0 5px 0 #136c2a;
+  }
+  #nextBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #136c2a}
+
+  /* редактор */
+  .editor-screen{
+    flex:1 1 auto;min-height:clamp(80px,12vh,120px);
+    background:#fcfdff;border:3px solid #c5d3e8;border-radius:10px;padding:8px 16px;
+    font-family:Consolas,'Courier New',monospace;font-weight:700;
+    font-size:clamp(26px,4.2vh,40px);line-height:1.25;white-space:pre-wrap;word-break:break-word;color:#0d1730;
+    transition:background .25s,border-color .25s,box-shadow .25s;
+  }
+  .editor-screen.glow{background:#effff1;border-color:var(--green);box-shadow:0 0 0 4px rgba(30,158,63,.35)}
+  .cursor{color:#1a73e8;font-weight:800;animation:blink 1s steps(1) infinite;margin:0 -2px}
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  .victim{background:#ffc9c9;border-bottom:4px solid var(--red);border-radius:3px}
+
+  /* ---------- клавиатура ---------- */
+  .keyboard{
+    background:#2b3345;border-radius:16px;padding:10px 10px 28px;
+    display:flex;flex-direction:column;gap:6px;
+    box-shadow:0 5px 0 #151b29;flex:1 1 auto;min-height:200px;
+  }
+  .kb-row{display:grid;grid-template-columns:repeat(60,1fr);gap:6px;flex:1 1 0;min-height:0}
+  .kb-row.fnrow{flex:.55 1 0}
+  .key{
+    position:relative;min-height:0;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    font-size:var(--kf);font-weight:800;color:#1c2536;
+    background:linear-gradient(#fdfdfe,#dfe4ec);
+    border:1px solid #aab4c4;border-bottom:5px solid #8f9aae;border-radius:9px;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.9);
+    cursor:pointer;user-select:none;touch-action:manipulation;
+    transition:transform .06s,background .15s;
+  }
+  .key.fn{font-size:clamp(11px,1.8vh,15px);color:#5b6679;background:linear-gradient(#e9edf3,#cdd4de);border-bottom-width:4px}
+  .key.inert{cursor:default;color:#5b6679}
+  .key.mod{font-size:var(--kl);background:linear-gradient(#eef1f6,#d2d9e4)}
+  .key .ic{width:clamp(18px,3vh,28px);height:clamp(18px,3vh,28px);flex:0 0 auto}
+  .key .top{position:absolute;top:2px;left:7px;font-size:clamp(10px,1.7vh,15px);font-weight:700;color:#6a7589}
+  .key.digit{padding-top:clamp(8px,1.6vh,14px)}
+  .key.down{transform:translateY(4px);border-bottom-width:1px;background:linear-gradient(#cfd8e6,#bcc7d9)}
+
+  /* подсказки на клавишах */
+  .key.press{
+    background:linear-gradient(#fff08a,#ffd23a);border-color:#d9a000;border-bottom-color:#b88400;color:#4a3300;
+    animation:keyPulse 1s ease-in-out infinite;z-index:3;
+    box-shadow:0 0 0 4px rgba(255,200,0,.55);
+  }
+  .key.hold{
+    background:linear-gradient(#ffc27a,#ff9a2e);border-color:#d97500;border-bottom-width:1px;color:#4a2400;
+    transform:translateY(4px);z-index:3;box-shadow:0 0 0 4px rgba(255,140,0,.5);
+  }
+  @keyframes keyPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  .pill{
+    position:absolute;top:-12px;left:50%;transform:translateX(-50%);z-index:6;
+    font-size:clamp(11px,1.7vh,14px);font-weight:800;letter-spacing:.5px;white-space:nowrap;
+    color:#fff;padding:1px 9px;border-radius:999px;pointer-events:none;
+  }
+  .press .pill{background:#1e9e3f}
+  .hold .pill{background:#d9531e}
+  .finger{
+    position:absolute;left:52%;top:46%;z-index:7;pointer-events:none;
+    font-size:clamp(24px,4.6vh,44px);line-height:1;filter:drop-shadow(0 3px 2px rgba(0,0,0,.35));
+  }
+  .press .finger{animation:tap .8s ease-in-out infinite}
+  @keyframes tap{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  /* левая рука — палец отражён зеркально */
+  .finger.mirror{transform:scaleX(-1)}
+  .press .finger.mirror{animation:tapL .8s ease-in-out infinite}
+  @keyframes tapL{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-9px)}}
+
+  /* ---------- победа ---------- */
+  .win{position:fixed;inset:0;background:rgba(18,32,70,.65);display:none;align-items:center;justify-content:center;z-index:300;padding:20px}
+  .win.show{display:flex}
+  .win-card{background:#fff;border:6px solid var(--blue);border-radius:20px;padding:30px 40px;text-align:center;max-width:720px}
+  .win-card .big{font-size:80px;line-height:1}
+  .win-card h2{font-size:34px;color:var(--blue);margin:12px 0}
+  .win-card p{font-size:23px;line-height:1.45;margin:0;color:#2a3753}
+  #restartBtn{margin-top:20px;font:800 24px 'Segoe UI',Verdana,sans-serif;color:#fff;background:var(--blue);border:none;border-radius:12px;padding:12px 34px;cursor:pointer;box-shadow:0 5px 0 var(--blue-d)}
+
+  @media (max-width:900px){.work{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">⌨ Мастер клавиатуры <span>2 класс</span></div>
+  <nav class="stepper" id="stepper" aria-label="Задания"></nav>
+  <div class="counter" id="progressPill">Задание 1 из 15</div>
+</header>
+
+<main class="app">
+  <section class="task-card">
+    <div class="task-title" id="taskTitle"></div>
+    <div class="task-desc" id="taskDesc"></div>
+  </section>
+
+  <section class="work">
+    <div class="panel target-panel">
+      <div class="panel-head"><span id="tokHead">Напечатай:</span><span class="goal" id="goal"></span></div>
+      <div class="tokens" id="tokens"></div>
+      <div class="strip hint" id="strip"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span>Экран редактора</span></div>
+      <div class="editor-screen" id="screen"></div>
+    </div>
+  </section>
+
+  <section class="keyboard" id="keyboard"></section>
+</main>
+
+<div class="win" id="winScreen">
+  <div class="win-card">
+    <div class="big">🏆</div>
+    <h2>Ты настоящий мастер клавиатуры!</h2>
+    <p>Ты выполнил все 15 заданий! Enter, Shift, Backspace и Delete теперь твои лучшие друзья.</p>
+    <button id="restartBtn">Пройти ещё раз</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   РАСКЛАДКА ЙЦУКЕН
+   ===================================================================== */
+const RU = {
+  Backquote:'ё',
+  KeyQ:'й',KeyW:'ц',KeyE:'у',KeyR:'к',KeyT:'е',KeyY:'н',KeyU:'г',KeyI:'ш',KeyO:'щ',KeyP:'з',
+  BracketLeft:'х',BracketRight:'ъ',
+  KeyA:'ф',KeyS:'ы',KeyD:'в',KeyF:'а',KeyG:'п',KeyH:'р',KeyJ:'о',KeyK:'л',KeyL:'д',
+  Semicolon:'ж',Quote:'э',
+  KeyZ:'я',KeyX:'ч',KeyC:'с',KeyV:'м',KeyB:'и',KeyN:'т',KeyM:'ь',Comma:'б',Period:'ю',Slash:'.'
+};
+const SHIFT_DIG = {
+  Digit1:'!',Digit2:'"',Digit3:'№',Digit4:';',Digit5:'%',
+  Digit6:':',Digit7:'?',Digit8:'*',Digit9:'(',Digit0:')'
+};
+const CODE_OF = {};
+for (const c in RU) CODE_OF[RU[c]] = c;
+
+/* клавиши левой руки — Shift нажимается правой, и наоборот */
+const LEFT = new Set(['Backquote','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6',
+  'KeyQ','KeyW','KeyE','KeyR','KeyT','KeyA','KeyS','KeyD','KeyF','KeyG','KeyZ','KeyX','KeyC','KeyV','KeyB']);
+const shiftFor = code => LEFT.has(code) ? 'ShiftRight' : 'ShiftLeft';
+const isLeftKey = id => LEFT.has(id) || id === 'ShiftLeft';
+
+/* =====================================================================
+   РЕДАКТОР
+   ===================================================================== */
+const S = { text:'', cursor:0 };
+function ins(ch){ S.text = S.text.slice(0,S.cursor) + ch + S.text.slice(S.cursor); S.cursor += ch.length; }
+function bksp(){ if (S.cursor > 0){ S.text = S.text.slice(0,S.cursor-1) + S.text.slice(S.cursor); S.cursor--; } }
+function del(){ if (S.cursor < S.text.length){ S.text = S.text.slice(0,S.cursor) + S.text.slice(S.cursor+1); } }
+
+/* =====================================================================
+   15 ЗАДАНИЙ  (вопросы и теория без изменений; исправлено задание 12)
+   ===================================================================== */
+const TASKS = [
+  { title:'Задание 1. Пробел',
+    desc:'Раздели слова «Кот» и «Собака». Курсор уже стоит между ними — нажми клавишу Space (Пробел).',
+    start:{text:'КотСобака', cursor:3},
+    steps:[ {k:'Space', f:()=>ins(' ')} ] },
+
+  { title:'Задание 2. Энтер',
+    desc:'Перенеси слово «Привет» на новую строчку. Нажми клавишу Enter (Энтер).',
+    start:{text:'Привет', cursor:0},
+    steps:[ {k:'Enter', f:()=>ins('\n')} ] },
+
+  { title:'Задание 3. Бэкспейс',
+    desc:'В слове «Шкохла» опечатка! Курсор стоит ПОСЛЕ буквы «х». Удали ошибку клавишей Backspace (Бэкспейс).',
+    start:{text:'Шкохла', cursor:4},
+    steps:[ {k:'Backspace', f:bksp} ] },
+
+  { title:'Задание 4. Делит',
+    desc:'В слове «Доом» опечатка! Курсор стоит ПЕРЕД лишней буквой «о». Удали её клавишей Delete (Делит).',
+    start:{text:'Доом', cursor:2},
+    steps:[ {k:'Delete', f:del} ] },
+
+  { title:'Задание 5. Шифт + буква',
+    desc:'Напечатай большую заглавную букву «А». Зажми Shift (Шифт) и, не отпуская её, нажми клавишу А.',
+    start:{text:'', cursor:0},
+    steps:[ {k:'А', f:()=>ins('А')} ] },
+
+  { title:'Задание 6. Имя «Анна»',
+    desc:'Напечатай имя «Анна». Первая буква большая: зажми Shift (Шифт) и нажми А, а потом набери «нна».',
+    start:{text:'', cursor:0},
+    steps:[ {k:'А',f:()=>ins('А')}, {k:'н',f:()=>ins('н')}, {k:'н',f:()=>ins('н')}, {k:'а',f:()=>ins('а')} ] },
+
+  { title:'Задание 7. Восклицательный знак',
+    desc:'Поставь восклицательный знак «!» в конце слова «Ура». Зажми Shift (Шифт) и нажми клавишу 1.',
+    start:{text:'Ура', cursor:3},
+    steps:[ {k:'!', f:()=>ins('!')} ] },
+
+  { title:'Задание 8. Вопросительный знак',
+    desc:'Поставь вопросительный знак «?» в конце фразы «Кто там». Зажми Shift (Шифт) и нажми клавишу 7.',
+    start:{text:'Кто там', cursor:7},
+    steps:[ {k:'?', f:()=>ins('?')} ] },
+
+  { title:'Задание 9. Новая строка и большая буква',
+    desc:'Опустись на новую строку клавишей Enter (Энтер), а потом напиши с большой буквы слово «Мама».',
+    start:{text:'Привет', cursor:6},
+    steps:[ {k:'Enter',f:()=>ins('\n')}, {k:'М',f:()=>ins('М')}, {k:'а',f:()=>ins('а')}, {k:'м',f:()=>ins('м')}, {k:'а',f:()=>ins('а')} ] },
+
+  { title:'Задание 10. Бэкспейс стирает СЛЕВА',
+    desc:'В слове «Коомпьютер» лишняя буква. Курсор стоит МЕЖДУ двумя буквами «о». Сотри букву СЛЕВА клавишей Backspace (Бэкспейс).',
+    start:{text:'Коомпьютер', cursor:2},
+    steps:[ {k:'Backspace', f:bksp} ] },
+
+  { title:'Задание 11. Делит стирает СПРАВА',
+    desc:'В слове «Клавииатура» лишняя буква. Курсор стоит МЕЖДУ двумя буквами «и». Сотри букву СПРАВА клавишей Delete (Делит).',
+    start:{text:'Клавииатура', cursor:5},
+    steps:[ {k:'Delete', f:del} ] },
+
+  /* ИСПРАВЛЕНО: «класс» — с маленькой буквы (раньше требовалась большая К) */
+  { title:'Задание 12. «2 класс»',
+    desc:'Напечатай «2 класс». Сначала клавиша 2, потом Space (Пробел), а дальше маленькими буквами «класс».',
+    start:{text:'', cursor:0},
+    steps:[ {k:'2',f:()=>ins('2')}, {k:'Space',f:()=>ins(' ')},
+            {k:'к',f:()=>ins('к')}, {k:'л',f:()=>ins('л')}, {k:'а',f:()=>ins('а')}, {k:'с',f:()=>ins('с')}, {k:'с',f:()=>ins('с')} ] },
+
+  { title:'Задание 13. Две строки',
+    desc:'Напиши слово «Кот», нажми Enter (Энтер), а на новой строке напиши слово «Пёс» с большой буквы (Shift + П).',
+    start:{text:'', cursor:0},
+    steps:[ {k:'К',f:()=>ins('К')}, {k:'о',f:()=>ins('о')}, {k:'т',f:()=>ins('т')}, {k:'Enter',f:()=>ins('\n')},
+            {k:'П',f:()=>ins('П')}, {k:'ё',f:()=>ins('ё')}, {k:'с',f:()=>ins('с')} ] },
+
+  { title:'Задание 14. Очистка',
+    desc:'В строке написано слово «Ошибка». Нажми Backspace (Бэкспейс) 3 раза подряд, чтобы удалить последние 3 буквы.',
+    start:{text:'Ошибка', cursor:6},
+    steps:[ {k:'Backspace',f:bksp}, {k:'Backspace',f:bksp}, {k:'Backspace',f:bksp} ] },
+
+  { title:'Задание 15. Финальный мастер',
+    desc:'Напечатай предложение «Я 2 класс!». Начни с большой Я (Shift + Я), сделай Space (Пробел), напечатай «2 класс» и поставь «!» (Shift + 1).',
+    start:{text:'', cursor:0},
+    steps:[ {k:'Я',f:()=>ins('Я')}, {k:'Space',f:()=>ins(' ')}, {k:'2',f:()=>ins('2')}, {k:'Space',f:()=>ins(' ')},
+            {k:'к',f:()=>ins('к')}, {k:'л',f:()=>ins('л')}, {k:'а',f:()=>ins('а')}, {k:'с',f:()=>ins('с')}, {k:'с',f:()=>ins('с')},
+            {k:'!',f:()=>ins('!')} ] }
+];
+
+/* =====================================================================
+   ЭЛЕМЕНТЫ И ПОДПИСИ
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const el = {
+  progress:$('progressPill'), title:$('taskTitle'), desc:$('taskDesc'), stepper:$('stepper'),
+  tokHead:$('tokHead'), goal:$('goal'), tokens:$('tokens'), strip:$('strip'),
+  screen:$('screen'), keyboard:$('keyboard'), win:$('winScreen')
+};
+
+const isUp = k => /^[А-ЯЁ]$/.test(k);
+
+function keyLabel(k){
+  if (k === 'Space')     return 'Space (Пробел)';
+  if (k === 'Enter')     return 'Enter (Энтер)';
+  if (k === 'Backspace') return 'Backspace (Бэкспейс)';
+  if (k === 'Delete')    return 'Delete (Делит)';
+  if (k === '!')         return 'Shift + 1 (Шифт + 1)';
+  if (k === '?')         return 'Shift + 7 (Шифт + 7)';
+  if (isUp(k))           return 'Shift + ' + k + ' (Шифт + ' + k + ')';
+  return k;
+}
+
+/* какие клавиши подсвечивать и какая роль у каждой */
+function keyRoles(k){
+  if (['Space','Enter','Backspace','Delete'].includes(k)) return [{id:k, role:'press'}];
+  if (k === '!') return [{id:shiftFor('Digit1'),role:'hold'},{id:'Digit1',role:'press'}];
+  if (k === '?') return [{id:shiftFor('Digit7'),role:'hold'},{id:'Digit7',role:'press'}];
+  if (/^[0-9]$/.test(k)) return [{id:'Digit'+k, role:'press'}];
+  if (isUp(k)){
+    const c = CODE_OF[k.toLowerCase()];
+    return [{id:shiftFor(c),role:'hold'},{id:c,role:'press'}];
+  }
+  const c = CODE_OF[k];
+  return c ? [{id:c, role:'press'}] : [];
+}
+
+/* подпись в «слове, которое надо напечатать» */
+function tokenOf(k){
+  if (k === 'Space')     return {t:'Пробел', small:true};
+  if (k === 'Enter')     return {t:'Enter ↵', small:true};
+  if (k === 'Backspace') return {t:'Backspace ⌫', small:true};
+  if (k === 'Delete')    return {t:'Delete ⌦', small:true};
+  return {t:k, small:false};
+}
+
+/* итоговый текст в редакторе после выполнения задания */
+function goalOf(t){
+  const save = {text:S.text, cursor:S.cursor};
+  S.text = t.start.text; S.cursor = t.start.cursor;
+  t.steps.forEach(s => s.f());
+  const r = S.text; S.text = save.text; S.cursor = save.cursor;
+  return r;
+}
+
+/* =====================================================================
+   ВИРТУАЛЬНАЯ КЛАВИАТУРА (как настоящая, 15 «единиц» в ряду)
+   ===================================================================== */
+const SVG = {
+  shift:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 3 13h5v7h8v-7h5z"/></svg>',
+  back :'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M9 5h12v14H9L2 12z"/><path d="m12.5 9.5 5 5m0-5-5 5"/></svg>',
+  del  :'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M3 5h12l7 7-7 7H3z"/><path d="m7.5 9.5 5 5m0-5-5 5"/></svg>',
+  enter:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M20 5v8H5m0 0 4.5-4.5M5 13l4.5 4.5"/></svg>',
+  tab  :'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13m-4-4 4 4-4 4M21 5v14"/></svg>',
+  space:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:clamp(26px,4vh,40px)"><path d="M3 9v6h18V9"/></svg>'
+};
+const ch = (code, w) => ({id:code, label:RU[code].toUpperCase(), w});
+const digit = (d, w) => ({id:'Digit'+d, label:d, top:SHIFT_DIG['Digit'+d]||'', w, cls:'digit'});
+const R2 = ['KeyQ','KeyW','KeyE','KeyR','KeyT','KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight'];
+const R3 = ['KeyA','KeyS','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote'];
+const R4 = ['KeyZ','KeyX','KeyC','KeyV','KeyB','KeyN','KeyM','Comma','Period','Slash'];
+const inert = (id, label, w, cls) => ({id, label, w, cls:'inert ' + (cls||'')});
+
+const KB_ROWS = [
+  [ inert('Escape','Esc',1,'fn'),
+    ...[1,2,3,4,5,6,7,8,9,10,11,12].map(n => inert('F'+n,'F'+n,1,'fn')),
+    {id:'Delete', html:SVG.del+'<span>Delete</span>', w:2, cls:'mod'} ],
+  [ ch('Backquote',1),
+    ...['1','2','3','4','5','6','7','8','9','0'].map(d => digit(d,1)),
+    {id:'Minus', label:'-', top:'_', w:1, cls:'digit inert'}, {id:'Equal', label:'=', top:'+', w:1, cls:'digit inert'},
+    {id:'Backspace', html:SVG.back+'<span>Backspace</span>', w:2, cls:'mod'} ],
+  [ {id:'Tab', html:SVG.tab, w:1.5, cls:'mod inert'},
+    ...R2.map(c => ch(c,1)),
+    {id:'Backslash', label:'/', w:1.5, cls:'inert'} ],
+  [ {id:'CapsLock', label:'Caps', w:1.75, cls:'mod inert'},
+    ...R3.map(c => ch(c,1)),
+    {id:'Enter', html:'<span>Enter</span>'+SVG.enter, w:2.25, cls:'mod'} ],
+  [ {id:'ShiftLeft', html:SVG.shift+'<span>Shift</span>', w:2.25, cls:'mod'},
+    ...R4.map(c => ch(c,1)),
+    {id:'ShiftRight', html:'<span>Shift</span>'+SVG.shift, w:2.75, cls:'mod'} ],
+  [ {id:'ControlLeft', label:'Ctrl', w:1.25, cls:'mod inert'},
+    {id:'MetaLeft', label:'Win', w:1.25, cls:'mod inert'},
+    {id:'AltLeft', label:'Alt', w:1.25, cls:'mod inert'},
+    {id:'Space', html:SVG.space+'<span>Пробел</span>', w:6.25, cls:'mod'},
+    {id:'AltRight', label:'Alt', w:1.25, cls:'mod inert'},
+    {id:'MetaRight', label:'Win', w:1.25, cls:'mod inert'},
+    {id:'ContextMenu', label:'☰', w:1.25, cls:'mod inert'},
+    {id:'ControlRight', label:'Ctrl', w:1.25, cls:'mod inert'} ]
+];
+
+const keyEls = {};
+function buildKeyboard(){
+  el.keyboard.innerHTML = '';
+  KB_ROWS.forEach((row, ri) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'kb-row' + (ri === 0 ? ' fnrow' : '');
+    row.forEach(k => {
+      const e = document.createElement('div');
+      e.className = 'key ' + (k.cls || '');
+      e.style.gridColumn = 'span ' + Math.round(k.w * 4);
+      e.dataset.id = k.id;
+      if (k.top) { const t = document.createElement('span'); t.className = 'top'; t.textContent = k.top; e.appendChild(t); }
+      if (k.html) e.insertAdjacentHTML('beforeend', k.html);
+      else e.appendChild(document.createTextNode(k.label));
+      e.addEventListener('click', () => onVirtualKey(k.id));
+      rowEl.appendChild(e);
+      keyEls[k.id] = e;
+    });
+    el.keyboard.appendChild(rowEl);
+  });
+}
+buildKeyboard();
+
+/* =====================================================================
+   СОСТОЯНИЕ
+   ===================================================================== */
+let taskIndex = 0, stepIndex = 0, locked = false;
+let unlocked = 0;                 // самое дальнее открытое задание
+const completed = new Set();
+const pressed = new Set();        // физически зажатые клавиши
+let latch = null;                 // Shift, «залипший» мышкой
+let hintTimer = null;
+
+const shiftOn = () => pressed.has('ShiftLeft') || pressed.has('ShiftRight') || latch !== null;
+
+function startTask(i){
+  taskIndex = i; stepIndex = 0; locked = false; latch = null;
+  clearTimeout(hintTimer);
+  const t = TASKS[i];
+  S.text = t.start.text; S.cursor = t.start.cursor;
+  el.screen.classList.remove('glow');
+  render();
+}
+
+/* =====================================================================
+   ОТРИСОВКА
+   ===================================================================== */
+function decorate(desc){
+  return desc
+    .replace(/«([^»]+)»/g, '<span class="q">«$1»</span>')
+    .replace(/\b(Space|Enter|Backspace|Delete|Shift)\b/g, '<span class="kw">$1</span>');
+}
+
+function capsHTML(k){
+  const cap = x => '<span class="cap">' + x + '</span>';
+  if (k === 'Space') return cap('Пробел');
+  if (k === 'Enter') return cap('Enter ↵');
+  if (k === 'Backspace') return cap('Backspace ⌫');
+  if (k === 'Delete') return cap('Delete ⌦');
+  if (k === '!') return cap('Shift') + '<span class="plus">+</span>' + cap('1');
+  if (k === '?') return cap('Shift') + '<span class="plus">+</span>' + cap('7');
+  if (isUp(k)) return cap('Shift') + '<span class="plus">+</span>' + cap(k);
+  if (/^[а-яё]$/.test(k)) return cap(k.toUpperCase()) + ' <span class="note">маленькая буква</span>';
+  return cap(k);
+}
+
+function setStrip(type, html){
+  el.strip.className = 'strip ' + type;
+  el.strip.innerHTML = html;
+}
+
+function showHint(){
+  const step = TASKS[taskIndex].steps[stepIndex];
+  if (!step) return;
+  setStrip('hint', 'Сейчас нажми: ' + capsHTML(step.k));
+}
+
+function render(){
+  const t = TASKS[taskIndex];
+
+  el.progress.textContent = 'Задание ' + (taskIndex + 1) + ' из ' + TASKS.length;
+  el.title.textContent = t.title;
+  el.desc.innerHTML = decorate(t.desc);
+
+  /* лента заданий: пройденные / текущее / закрытые */
+  el.stepper.innerHTML = '';
+  TASKS.forEach((_, i) => {
+    const b = document.createElement('button');
+    const isDone = completed.has(i);
+    b.className = 'st ' + (i === taskIndex ? 'now' : (isDone ? 'done' : 'lock'));
+    b.textContent = (i === taskIndex) ? (i + 1) : (isDone ? '✓' : (i + 1));
+    b.title = i <= unlocked ? 'Задание ' + (i + 1) : 'Сначала выполни предыдущие задания';
+    b.addEventListener('click', () => { b.blur(); if (i <= unlocked && i !== taskIndex) startTask(i); });
+    el.stepper.appendChild(b);
+  });
+
+  /* слово, которое надо напечатать */
+  el.tokens.innerHTML = '';
+  let onlySpecial = true;
+  t.steps.forEach((s, i) => {
+    const tk = tokenOf(s.k);
+    if (!tk.small) onlySpecial = false;
+    const d = document.createElement('span');
+    d.className = 'tok' + (tk.small ? ' small' : '') + (i < stepIndex ? ' done' : (i === stepIndex && !locked ? ' now' : ''));
+    d.textContent = tk.t;
+    d.id = 'tok' + i;
+    el.tokens.appendChild(d);
+  });
+  el.tokHead.textContent = onlySpecial ? 'Нажми:' : 'Напечатай:';
+  const g = goalOf(t);
+  el.goal.innerHTML = t.start.text ? 'Получится: <b>' + g.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,' ↵ ') + '</b>' : '';
+
+  renderEditor();
+  highlightKeys();
+  if (!locked) showHint();
+}
+
+function renderEditor(){
+  const step = TASKS[taskIndex].steps[stepIndex];
+  let before = S.text.slice(0, S.cursor), after = S.text.slice(S.cursor);
+  let vB = '', vA = '';
+  if (!locked && step && step.k === 'Backspace' && before.length){ vB = before.slice(-1); before = before.slice(0,-1); }
+  if (!locked && step && step.k === 'Delete' && after.length){ vA = after.slice(0,1); after = after.slice(1); }
+
+  el.screen.innerHTML = '';
+  const mk = (txt, cls) => { const s = document.createElement('span'); if (cls) s.className = cls; s.textContent = txt; return s; };
+  el.screen.append(mk(before), mk(vB,'victim'), mk('|','cursor'), mk(vA,'victim'), mk(after));
+}
+
+/* подсветка клавиш + пальцы + надписи «ДЕРЖИ / НАЖМИ» */
+function highlightKeys(){
+  Object.values(keyEls).forEach(n => {
+    n.classList.remove('press','hold');
+    n.querySelectorAll('.finger,.pill').forEach(x => x.remove());
+  });
+  const step = locked ? null : TASKS[taskIndex].steps[stepIndex];
+  if (!step) return;
+  keyRoles(step.k).forEach(r => {
+    const n = keyEls[r.id]; if (!n) return;
+    n.classList.add(r.role);
+    const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = r.role === 'hold' ? 'ДЕРЖИ' : 'НАЖМИ';
+    const f = document.createElement('span'); f.className = 'finger' + (isLeftKey(r.id) ? ' mirror' : ''); f.textContent = '👆';
+    n.append(pill, f);
+  });
+}
+
+function syncDown(){
+  Object.entries(keyEls).forEach(([id, n]) => {
+    n.classList.toggle('down', pressed.has(id) || latch === id);
+  });
+}
+
+/* =====================================================================
+   ОБРАБОТКА НАЖАТИЙ
+   ===================================================================== */
+function handleKey(k, capsOn){
+  if (locked) return;
+  const t = TASKS[taskIndex];
+  const step = t.steps[stepIndex];
+  if (!step) return;
+
+  if (k === step.k){
+    step.f();
+    stepIndex++;
+    if (stepIndex >= t.steps.length) finishTask();
+    else render();
+  } else {
+    const tok = $('tok' + stepIndex);
+    if (tok){ tok.classList.remove('bad'); void tok.offsetWidth; tok.classList.add('bad'); }
+    setStrip('error', '🙈 ' + errorMessage(k, step.k, capsOn));
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => { if (!locked) showHint(); }, 6500);
+  }
+}
+
+function finishTask(){
+  locked = true;
+  completed.add(taskIndex);
+  unlocked = Math.max(unlocked, Math.min(taskIndex + 1, TASKS.length - 1));
+  render();
+  el.screen.classList.add('glow');
+  const last = taskIndex === TASKS.length - 1;
+  setStrip('ok', '✅ Правильно! Молодец! <button id="nextBtn">' + (last ? 'Завершить 🏆' : 'Дальше →') + '</button>');
+  $('nextBtn').addEventListener('click', () => {
+    if (last) el.win.classList.add('show');
+    else startTask(taskIndex + 1);
+  });
+}
+
+function errorMessage(p, e, capsOn){
+  const needsShift = isUp(e) || e === '!' || e === '?';
+  const pUp = isUp(p);
+  let msg;
+
+  if (capsOn){
+    msg = 'Включён Caps Lock! Нажми клавишу Caps Lock один раз, чтобы выключить его, и попробуй снова.';
+  } else if (needsShift && !pUp && p !== '!' && p !== '?'){
+    if (e === '!') msg = 'Восклицательный знак «!» — это Shift + 1. Зажми Shift (Шифт) и, не отпуская её, нажми цифру 1!';
+    else if (e === '?') msg = 'Вопросительный знак «?» — это Shift + 7. Зажми Shift (Шифт) и, не отпуская её, нажми цифру 7!';
+    else msg = 'Чтобы буква «' + e + '» стала большой, нужно ЗАЖАТЬ Shift (Шифт) и, не отпуская его, нажать клавишу ' + e + '!';
+  } else if (!needsShift && pUp){
+    const low = p.toLowerCase();
+    msg = 'Сейчас нужна маленькая буква «' + low + '». Отпусти Shift (Шифт) и нажми просто «' + low + '»!';
+  } else if (e === 'Delete' && p === 'Backspace'){
+    msg = 'Ты нажал Backspace. Он стирает букву СЛЕВА от курсора! А нужно удалить букву СПРАВА — нажми Delete (Делит)!';
+  } else if (e === 'Backspace' && p === 'Delete'){
+    msg = 'Ты нажал Delete. Он стирает букву СПРАВА от курсора! А нужно удалить букву СЛЕВА — нажми Backspace (Бэкспейс)!';
+  } else if (e === 'Enter'){
+    msg = 'Сейчас нужна клавиша Enter (Энтер). Она переносит курсор на новую строчку!';
+  } else if (e === 'Space'){
+    msg = 'Сейчас нужна клавиша Space (Пробел) — самая длинная клавиша внизу. Она делает пробел между словами!';
+  } else {
+    msg = 'Не та клавиша! Сейчас нужно нажать: ' + keyLabel(e) + '. Попробуй ещё раз!';
+  }
+  return msg;
+}
+
+/* =====================================================================
+   ФИЗИЧЕСКАЯ КЛАВИАТУРА
+   ===================================================================== */
+function keyFromEvent(e){
+  const code = e.code;
+  if (code === 'Space') return 'Space';
+  if (code === 'Enter' || code === 'NumpadEnter') return 'Enter';
+  if (code === 'Backspace') return 'Backspace';
+  if (code === 'Delete') return 'Delete';
+
+  if (RU[code] && code !== 'Slash'){
+    const caps = e.getModifierState && e.getModifierState('CapsLock');
+    const up = e.shiftKey !== !!caps;
+    return up ? RU[code].toUpperCase() : RU[code];
+  }
+  if (/^Digit\d$/.test(code)){
+    const d = code.slice(5);
+    return e.shiftKey ? (SHIFT_DIG[code] || d) : d;
+  }
+  return null;
+}
+
+window.addEventListener('keydown', function(e){
+  if (el.win.classList.contains('show')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  pressed.add(e.code); syncDown();
+
+  if (e.repeat) { if (keyFromEvent(e) !== null) e.preventDefault(); return; }
+
+  const k = keyFromEvent(e);
+  if (k === null) return;
+  e.preventDefault();
+  handleKey(k, e.getModifierState && e.getModifierState('CapsLock'));
+});
+window.addEventListener('keyup', e => { pressed.delete(e.code); syncDown(); });
+window.addEventListener('blur', () => { pressed.clear(); syncDown(); });
+
+/* =====================================================================
+   КЛИКИ МЫШКОЙ ПО ВИРТУАЛЬНОЙ КЛАВИАТУРЕ
+   ===================================================================== */
+function onVirtualKey(id){
+  if (locked || el.win.classList.contains('show')) return;
+  const n = keyEls[id];
+
+  if (id === 'ShiftLeft' || id === 'ShiftRight'){      // Shift — «залипает»
+    latch = (latch === id) ? null : id;
+    syncDown();
+    return;
+  }
+  if (n && n.classList.contains('inert')) return;
+
+  let k = null;
+  if (['Space','Enter','Backspace','Delete'].includes(id)) k = id;
+  else if (RU[id] && id !== 'Slash') k = shiftOn() ? RU[id].toUpperCase() : RU[id];
+  else if (/^Digit\d$/.test(id)){
+    const d = id.slice(5);
+    k = shiftOn() ? (SHIFT_DIG[id] || d) : d;
+  }
+
+  if (n){ n.classList.add('down'); setTimeout(syncDown, 130); }
+  if (k !== null) handleKey(k, false);
+  if (latch){ latch = null; syncDown(); }
+}
+
+/* =====================================================================
+   КНОПКА «ПРОЙТИ ЕЩЁ РАЗ» И СТАРТ
+   ===================================================================== */
+$('restartBtn').addEventListener('click', () => {
+  el.win.classList.remove('show');
+  completed.clear(); unlocked = 0;
+  startTask(0);
+});
+
+startTask(0);
+</script>
+</body>
+</html>
